@@ -52,18 +52,25 @@ export class Player {
       shape,
       material: this.physicsWorld.playerMaterial,
       position: new CANNON.Vec3(0, 3, 20), // Player spawn point
-      linearDamping: 0.15,
+      linearDamping: 0.1,
       fixedRotation: true // Prevent rolling over
     });
+    this.body.allowSleep = false; // Never sleep
     this.body.updateMassProperties();
     this.physicsWorld.world.addBody(this.body);
   }
 
   initControls() {
     // Pointer Lock
-    document.addEventListener('pointerlockchange', () => {
-      this.isLocked = (document.pointerLockElement === this.domElement);
-    });
+    const checkLock = () => {
+      this.isLocked = (
+        document.pointerLockElement === this.domElement ||
+        document.pointerLockElement === document.body ||
+        document.pointerLockElement !== null
+      );
+    };
+    document.addEventListener('pointerlockchange', checkLock);
+    document.addEventListener('mozpointerlockchange', checkLock);
 
     document.addEventListener('mousemove', (e) => {
       if (!this.isLocked || this.isDead) return;
@@ -77,81 +84,95 @@ export class Player {
       this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
     });
 
-    // Keyboard
+    // Keyboard (support both e.code, e.key, and Korean keyboard layouts)
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
     window.addEventListener('keyup', (e) => this.onKeyUp(e));
   }
 
   lock() {
-    this.domElement.requestPointerLock();
+    try {
+      if (this.domElement && this.domElement.requestPointerLock) {
+        this.domElement.requestPointerLock();
+      } else if (document.body.requestPointerLock) {
+        document.body.requestPointerLock();
+      }
+    } catch (err) {
+      console.warn("Pointer lock request failed:", err);
+    }
   }
 
   unlock() {
-    document.exitPointerLock();
+    if (document.exitPointerLock) {
+      document.exitPointerLock();
+    }
   }
 
   onKeyDown(e) {
     if (this.isDead) return;
-    switch (e.code) {
-      case 'KeyW':
-      case 'ArrowUp':
-        this.keys.forward = true;
-        break;
-      case 'KeyS':
-      case 'ArrowDown':
-        this.keys.backward = true;
-        break;
-      case 'KeyA':
-      case 'ArrowLeft':
-        this.keys.left = true;
-        break;
-      case 'KeyD':
-      case 'ArrowRight':
-        this.keys.right = true;
-        break;
-      case 'ShiftLeft':
-      case 'ShiftRight':
-        this.keys.sprint = true;
-        break;
-      case 'Space':
-        this.keys.jump = true;
-        this.tryJump();
-        break;
+    const code = e.code;
+    const key = e.key ? e.key.toLowerCase() : '';
+
+    // Forward (W, ArrowUp, Korean ㅈ)
+    if (code === 'KeyW' || key === 'w' || key === 'ㅈ' || key === 'ㅉ' || code === 'ArrowUp') {
+      this.keys.forward = true;
+      if (code === 'ArrowUp') e.preventDefault();
+    }
+    // Backward (S, ArrowDown, Korean ㄴ)
+    if (code === 'KeyS' || key === 's' || key === 'ㄴ' || code === 'ArrowDown') {
+      this.keys.backward = true;
+      if (code === 'ArrowDown') e.preventDefault();
+    }
+    // Left (A, ArrowLeft, Korean ㅁ)
+    if (code === 'KeyA' || key === 'a' || key === 'ㅁ' || code === 'ArrowLeft') {
+      this.keys.left = true;
+      if (code === 'ArrowLeft') e.preventDefault();
+    }
+    // Right (D, ArrowRight, Korean ㅇ)
+    if (code === 'KeyD' || key === 'd' || key === 'ㅇ' || code === 'ArrowRight') {
+      this.keys.right = true;
+      if (code === 'ArrowRight') e.preventDefault();
+    }
+    // Sprint (Shift)
+    if (code === 'ShiftLeft' || code === 'ShiftRight' || key === 'shift') {
+      this.keys.sprint = true;
+    }
+    // Jump (Space)
+    if (code === 'Space' || key === ' ' || key === 'spacebar') {
+      this.keys.jump = true;
+      this.tryJump();
+      e.preventDefault();
     }
   }
 
   onKeyUp(e) {
-    switch (e.code) {
-      case 'KeyW':
-      case 'ArrowUp':
-        this.keys.forward = false;
-        break;
-      case 'KeyS':
-      case 'ArrowDown':
-        this.keys.backward = false;
-        break;
-      case 'KeyA':
-      case 'ArrowLeft':
-        this.keys.left = false;
-        break;
-      case 'KeyD':
-      case 'ArrowRight':
-        this.keys.right = false;
-        break;
-      case 'ShiftLeft':
-      case 'ShiftRight':
-        this.keys.sprint = false;
-        break;
-      case 'Space':
-        this.keys.jump = false;
-        break;
+    const code = e.code;
+    const key = e.key ? e.key.toLowerCase() : '';
+
+    if (code === 'KeyW' || key === 'w' || key === 'ㅈ' || key === 'ㅉ' || code === 'ArrowUp') {
+      this.keys.forward = false;
+    }
+    if (code === 'KeyS' || key === 's' || key === 'ㄴ' || code === 'ArrowDown') {
+      this.keys.backward = false;
+    }
+    if (code === 'KeyA' || key === 'a' || key === 'ㅁ' || code === 'ArrowLeft') {
+      this.keys.left = false;
+    }
+    if (code === 'KeyD' || key === 'd' || key === 'ㅇ' || code === 'ArrowRight') {
+      this.keys.right = false;
+    }
+    if (code === 'ShiftLeft' || code === 'ShiftRight' || key === 'shift') {
+      this.keys.sprint = false;
+    }
+    if (code === 'Space' || key === ' ' || key === 'spacebar') {
+      this.keys.jump = false;
     }
   }
 
   isGrounded() {
-    // Check if player body is resting on a surface
-    // Using contact equation normal check or raycast downwards
-    return Math.abs(this.body.velocity.y) < 0.25;
+    // Sphere radius is 0.65, so on floor y is ~0.65.
+    // Check if resting on floor or platform, or vertical speed is low
+    if (this.body.position.y <= 0.85) return true;
+    return Math.abs(this.body.velocity.y) < 0.8;
   }
 
   tryJump() {
@@ -233,6 +254,9 @@ export class Player {
 
     const speed = this.keys.sprint ? this.sprintSpeed : this.walkSpeed;
 
+    // Ensure player body is awake
+    this.body.wakeUp();
+
     // Apply horizontal velocity to Cannon-es body
     if (isMoving) {
       this.body.velocity.x = moveDir.x * speed;
@@ -253,11 +277,7 @@ export class Player {
     }
 
     // 3. Keep camera at player eye height (body pos + 1.1m)
-    this.camera.position.set(
-      this.body.position.x,
-      this.body.position.y + 1.1,
-      this.body.position.z
-    );
+    this.syncCamera();
 
     // Arena boundary safety fall-catch
     if (this.body.position.y < -10) {
@@ -268,5 +288,13 @@ export class Player {
       isMoving,
       isSprinting: this.keys.sprint
     };
+  }
+
+  syncCamera() {
+    this.camera.position.set(
+      this.body.position.x,
+      this.body.position.y + 1.1,
+      this.body.position.z
+    );
   }
 }

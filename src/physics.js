@@ -5,7 +5,7 @@ export class PhysicsWorld {
     this.world = new CANNON.World();
     this.world.gravity.set(0, -25, 0); // Fast, satisfying FPS gravity
     this.world.broadphase = new CANNON.SAPBroadphase(this.world);
-    this.world.allowSleep = true;
+    this.world.allowSleep = false; // Never freeze player or moving physics bodies
 
     // Contact Materials
     this.groundMaterial = new CANNON.Material('ground');

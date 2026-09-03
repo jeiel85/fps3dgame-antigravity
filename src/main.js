@@ -137,16 +137,34 @@ class Game {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Start Button
+    // Start Game on button or start screen click
     const startBtn = document.getElementById('start-btn');
+    const startScreen = document.getElementById('start-screen');
+    const startGame = () => {
+      sound.init();
+      this.ui.showStartScreen(false);
+      this.gameState = 'PLAYING';
+      this.player.lock();
+    };
+
     if (startBtn) {
-      startBtn.addEventListener('click', () => {
-        sound.init();
-        this.ui.showStartScreen(false);
-        this.gameState = 'PLAYING';
-        this.player.lock();
+      startBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startGame();
       });
     }
+    if (startScreen) {
+      startScreen.addEventListener('click', startGame);
+    }
+
+    // Re-lock pointer on canvas click while playing
+    window.addEventListener('click', (e) => {
+      if (this.gameState === 'PLAYING' && !this.player.isLocked) {
+        if (!e.target || !e.target.closest('button')) {
+          this.player.lock();
+        }
+      }
+    });
 
     // Retry Button
     const retryBtn = document.getElementById('retry-btn');
@@ -319,16 +337,19 @@ class Game {
     const dt = Math.min(rawDt, 0.05); // Cap to prevent physics tunneling
 
     if (this.gameState === 'PLAYING') {
-      // 1. Step Physics World
-      this.physics.step(dt);
-
-      // 2. Update Map (Jump pads cooldown)
-      this.map.update(dt);
-
-      // 3. Update Player Controls & Physics
+      // 1. Update Player Inputs & Desired Velocities
       const { isMoving, isSprinting } = this.player.update(dt);
 
-      // Check Jump Pad trigger
+      // 2. Step Physics World (Rigid body movement & collision)
+      this.physics.step(dt);
+
+      // 3. Sync Camera to post-physics body position
+      this.player.syncCamera();
+
+      // 4. Update Map (Jump pads cooldown)
+      this.map.update(dt);
+
+      // 5. Check Jump Pad trigger
       this.map.checkJumpPads(this.player.body.position, (force) => {
         this.player.applyBoost(force);
       });
