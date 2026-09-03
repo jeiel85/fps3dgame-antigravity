@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CYBERSHOCK 3D - Three.js Web FPS Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- 3D Three.js WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Damage Screen Vignette Flash -->
+  <div id="damage-overlay"></div>
+
+  <!-- Central Crosshair Reticle & Hitmarker -->
+  <div id="crosshair-container">
+    <div id="crosshair">
+      <div class="crosshair-line top"></div>
+      <div class="crosshair-line bottom"></div>
+      <div class="crosshair-line left"></div>
+      <div class="crosshair-line right"></div>
+      <div class="crosshair-dot"></div>
+    </div>
+    <div id="hitmarker"></div>
+  </div>
+
+  <!-- In-Game HUD -->
+  <div id="hud">
+    <!-- Top Bar: Wave, Bot Count, Score, Radar -->
+    <div class="top-hud">
+      <div class="game-stats">
+        <div class="stat-box">
+          <span class="stat-label">OPERATION</span>
+          <span class="stat-val" id="wave-text">WAVE 1</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">ENEMIES</span>
+          <span class="stat-val" id="bot-count-text">BOTS: 3</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-val" id="score-text">SCORE: 0</span>
+        </div>
+      </div>
+
+      <!-- Minimap Radar -->
+      <div class="radar-box">
+        <canvas id="radar-canvas" width="130" height="130"></canvas>
+      </div>
+    </div>
+
+    <!-- Center Bottom: Weapon Slots -->
+    <div class="weapon-slots">
+      <div class="slot active" id="slot-1">[1] PISTOL</div>
+      <div class="slot" id="slot-2">[2] RIFLE</div>
+      <div class="slot" id="slot-3">[3] SHOTGUN</div>
+    </div>
+
+    <!-- Bottom Bar: Health, Shield, Ammo -->
+    <div class="bottom-hud">
+      <!-- Player Health & Shield Bars -->
+      <div class="player-status">
+        <div class="bar-wrapper">
+          <div class="bar-header">
+            <span class="shield-label">SHIELD</span>
+            <span id="shield-text">50</span>
+          </div>
+          <div class="bar-bg">
+            <div id="shield-bar"></div>
+          </div>
+        </div>
+        <div class="bar-wrapper" style="margin-bottom: 0;">
+          <div class="bar-header">
+            <span class="hp-label">VITAL HP</span>
+            <span id="hp-text">100</span>
+          </div>
+          <div class="bar-bg">
+            <div id="hp-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weapon & Ammo Display -->
+      <div class="weapon-status">
+        <div id="weapon-name">CYBER PISTOL</div>
+        <div class="ammo-display">
+          <span id="ammo-cur">12</span>
+          <span id="ammo-max">/ 12</span>
+        </div>
+        <div id="reload-status">RELOADING...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen Overlay -->
+  <div class="modal-screen" id="start-screen">
+    <h1 class="modal-title">CYBERSHOCK 3D</h1>
+    <p class="modal-desc">
+      Three.js와 실시간 rigid-body 물리 엔진(cannon-es)으로 구동되는 사이버펑크 3D FPS 웹 게임입니다.
+      아레나의 AI 전투 봇들을 제압하고 물리 인터랙션(상자 밀기, 폭발 드럼통)을 전술적으로 활용하세요!
+    </p>
+
+    <div class="key-guide">
+      <div class="key-row">
+        <span class="key-badge">W A S D</span>
+        <span class="key-name">이동 (Move)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">MOUSE</span>
+        <span class="key-name">조준 & 시점 전환 (Aim)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">좌클릭</span>
+        <span class="key-name">사격 & 격발 (Fire)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">우클릭</span>
+        <span class="key-name">정조준 줌인 (ADS)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">SPACE</span>
+        <span class="key-name">점프 (Jump / 점프대 부스트)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">SHIFT</span>
+        <span class="key-name">전력 질주 (Sprint)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">R</span>
+        <span class="key-name">재장전 (Reload)</span>
+      </div>
+      <div class="key-row">
+        <span class="key-badge">1, 2, 3</span>
+        <span class="key-name">무기 교체 (권총, 소총, 샷건)</span>
+      </div>
+    </div>
+
+    <button class="action-btn" id="start-btn">DEPLOY (게임 시작)</button>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div class="modal-screen" id="game-over-screen" style="display: none;">
+    <h1 class="modal-title" style="background: linear-gradient(135deg, #ff0055, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SYSTEM TERMINATED</h1>
+    <p class="modal-desc" id="game-over-score">FINAL SCORE: 0</p>
+    <button class="action-btn" id="retry-btn">REBOOT (다시 시작)</button>
+  </div>
+
+  <!-- Wave Victory Screen -->
+  <div class="modal-screen" id="victory-screen" style="display: none;">
+    <h1 class="modal-title" style="background: linear-gradient(135deg, #00ff88, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AREA SECURED!</h1>
+    <p class="modal-desc" id="victory-wave">WAVE 1 CLEARED</p>
+    <button class="action-btn" id="next-wave-btn">NEXT WAVE (다음 웨이브)</button>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
