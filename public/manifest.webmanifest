@@ -1,0 +1,16 @@
+{
+  "name": "CYBERSHOCK 3D - 웹 FPS 게임",
+  "short_name": "CYBERSHOCK 3D",
+  "description": "Three.js와 cannon-es 물리 엔진으로 구동되는 사이버펑크 3D FPS 웹 게임",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050811",
+  "theme_color": "#050811",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
